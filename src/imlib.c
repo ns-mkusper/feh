@@ -523,7 +523,7 @@ void feh_reload_image(winwidget w, int resize, int force_new)
 	int old_w, old_h;
 
 	if (opt.prefetch && w->file)
-		prefetch_invalidate(FEH_FILE(w->file->data)->filename);
+		prefetch_revalidate(FEH_FILE(w->file->data)->filename);
 
 	if (!w->file) {
 		im_weprintf(w, "couldn't reload, this image has no file associated with it.");

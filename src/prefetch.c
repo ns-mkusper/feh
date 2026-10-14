@@ -48,6 +48,8 @@ enum { PF_QUEUED, PF_LOADING, PF_READY, PF_FAILED };
 typedef struct pf_entry {
 	char *name;		/* source path, as in the filelist */
 	char *local;		/* local copy, valid when state == PF_READY */
+	off_t size;		/* source size and mtime when the copy was taken */
+	struct timespec mtime;
 	int state;
 	unsigned wanted;	/* generation that last asked for this entry */
 	struct pf_entry *next;
@@ -70,7 +72,7 @@ static volatile int shutting_down = 0;
 
 #define PF_MAX_THREADS 6
 
-static int copy_file(const char *src, const char *dst)
+static int copy_file(const char *src, const char *dst, struct stat *st)
 {
 	static __thread char buf[256 * 1024];
 	int in, out, ok = 1;
@@ -78,7 +80,7 @@ static int copy_file(const char *src, const char *dst)
 
 	if ((in = open(src, O_RDONLY)) < 0)
 		return 0;
-	if ((out = open(dst, O_WRONLY | O_CREAT | O_EXCL, 0600)) < 0) {
+	if (fstat(in, st) != 0 || (out = open(dst, O_WRONLY | O_CREAT | O_EXCL, 0600)) < 0) {
 		close(in);
 		return 0;
 	}
@@ -114,6 +116,7 @@ static void *worker(__attribute__((unused)) void *arg)
 		pf_entry *e;
 		char *name, local[PATH_MAX + 64];
 		const char *base, *ext;
+		struct stat st;
 		int ok;
 
 		pthread_mutex_lock(&lock);
@@ -131,11 +134,13 @@ static void *worker(__attribute__((unused)) void *arg)
 		snprintf(local, sizeof(local), "%s/%lu%s", cache_dir, ++seq, ext ? ext : "");
 		pthread_mutex_unlock(&lock);
 
-		ok = shutting_down ? 0 : copy_file(name, local);
+		ok = shutting_down ? 0 : copy_file(name, local, &st);
 
 		pthread_mutex_lock(&lock);
 		if (ok) {
 			e->local = estrdup(local);
+			e->size = st.st_size;
+			e->mtime = st.st_mtim;
 			e->state = PF_READY;
 		} else {
 			e->state = PF_FAILED;
@@ -427,4 +432,38 @@ void prefetch_invalidate(const char *name)
 		free_entry(e);
 	}
 	pthread_mutex_unlock(&lock);
+}
+
+/* Drop the copy of name only if the source has changed since it was taken
+ * (size or mtime differ, or it cannot be stat'd). One stat instead of a full
+ * re-read when a reload finds the file unchanged. */
+void prefetch_revalidate(const char *name)
+{
+	pf_entry *e;
+	struct stat st;
+	off_t size;
+	struct timespec mtime;
+	int have = 0;
+
+	if (!initialized)
+		return;
+
+	pthread_mutex_lock(&lock);
+	e = find_entry(name);
+	if (e && e->state == PF_READY) {
+		size = e->size;
+		mtime = e->mtime;
+		have = 1;
+	}
+	pthread_mutex_unlock(&lock);
+
+	if (!have)
+		return;		/* nothing cached, or still in flight: nothing to keep stale */
+
+	/* stat without holding the lock: this may take a round trip */
+	if (stat(name, &st) == 0 && st.st_size == size
+			&& st.st_mtim.tv_sec == mtime.tv_sec && st.st_mtim.tv_nsec == mtime.tv_nsec)
+		return;
+
+	prefetch_invalidate(name);
 }

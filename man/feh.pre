@@ -311,10 +311,11 @@ using background threads, and load from those copies.
 This hides per-file latency on slow or network filesystems such as sshfs.
 Copies are removed when they fall out of the read-ahead window and when feh
 exits.
-Reloads
+On reload
 .Pq Cm r ,
 .Cm \-\-reload
-always re-read the original file.
+the original file is stat'd and re-read only if its size or modification
+time changed since the copy was taken.
 .Ar num
 must be between 0 and 64 and defaults to 0 (off).
 .
