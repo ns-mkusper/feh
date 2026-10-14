@@ -17,6 +17,7 @@ TARGETS = \
 	menu.c \
 	multiwindow.c \
 	options.c \
+	prefetch.c \
 	signals.c \
 	slideshow.c \
 	thumbnail.c \

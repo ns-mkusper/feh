@@ -37,6 +37,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "signals.h"
 #include "winwidget.h"
 #include "options.h"
+#include "prefetch.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -371,7 +372,17 @@ int feh_load_image(Imlib_Image * im, feh_file * file)
 		}
 	}
 	else {
-		if (feh_is_image(file, 0)) {
+		char *local = opt.prefetch ? prefetch_local_copy(file->filename) : NULL;
+		if (local) {
+			*im = imlib_load_image_with_error_return(local, &err);
+			free(local);
+			if (err) {
+				/* stale or unreadable copy: fall back to the source */
+				prefetch_invalidate(file->filename);
+				err = IMLIB_LOAD_ERROR_NONE;
+				*im = imlib_load_image_with_error_return(file->filename, &err);
+			}
+		} else if (feh_is_image(file, 0)) {
 			*im = imlib_load_image_with_error_return(file->filename, &err);
 		} else {
 			feh_err = LOAD_ERROR_MAGICBYTES;
@@ -510,6 +521,9 @@ void feh_reload_image(winwidget w, int resize, int force_new)
 	int len;
 	Imlib_Image tmp;
 	int old_w, old_h;
+
+	if (opt.prefetch && w->file)
+		prefetch_invalidate(FEH_FILE(w->file->data)->filename);
 
 	if (!w->file) {
 		im_weprintf(w, "couldn't reload, this image has no file associated with it.");

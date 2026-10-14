@@ -29,6 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "timers.h"
 #include "winwidget.h"
 #include "options.h"
+#include "prefetch.h"
 #include "signals.h"
 
 void init_slideshow_mode(void)
@@ -106,6 +107,10 @@ void init_slideshow_mode(void)
 			last = NULL;
 		}
 		current_file = l;
+		if (opt.prefetch) {
+			prefetch_init();
+			prefetch_schedule(l);
+		}
 		if ((w = winwidget_create_from_file(l, WIN_TYPE_SLIDESHOW)) != NULL) {
 			success = 1;
 			winwidget_show(w);
@@ -184,6 +189,8 @@ void cb_reload_timer(void *data)
 		if (!current_file)
 			current_file = filelist;
 		w->file = current_file;
+		if (opt.prefetch)
+			prefetch_schedule(current_file);
 	}
 
 	feh_reload_image(w, 1, 0);
@@ -344,6 +351,8 @@ void slideshow_change_image(winwidget winwid, int change, int render)
 			}
 			winwid->mode = MODE_NORMAL;
 			winwid->file = current_file;
+			if (opt.prefetch)
+				prefetch_schedule(current_file);
 			if ((winwid->im_w != w) || (winwid->im_h != h))
 				winwid->had_resize = 1;
 			winwidget_reset_image(winwid);

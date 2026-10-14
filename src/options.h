@@ -140,6 +140,9 @@ struct __fehoptions {
 	// imlib cache size in mebibytes
 	int cache_size;
 
+	// number of upcoming images to copy to local tmpfs in the background
+	int prefetch;
+
 	unsigned int min_width, min_height, max_width, max_height;
 
 	unsigned char mode;
@@ -256,6 +259,7 @@ OPTION_auto_reload,
 OPTION_class,
 OPTION_no_conversion_cache,
 OPTION_window_id,
+OPTION_prefetch,
 };
 
 //typedef enum __fehoption fehoption;

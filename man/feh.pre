@@ -302,6 +302,22 @@ slide shows, however at the cost of increased memory consumption.
 .Ar size
 must be between 0 and 2048 MiB and defaults to 4.
 .
+.It Cm \-\-prefetch Ar num
+.
+In slideshow mode, copy the next
+.Ar num
+images (and a few previous ones) to a per-process directory on local tmpfs
+using background threads, and load from those copies.
+This hides per-file latency on slow or network filesystems such as sshfs.
+Copies are removed when they fall out of the read-ahead window and when feh
+exits.
+Reloads
+.Pq Cm r ,
+.Cm \-\-reload
+always re-read the original file.
+.Ar num
+must be between 0 and 64 and defaults to 0 (off).
+.
 .It Cm \-P , \-\-cache\-thumbnails
 .
 Enable thumbnail caching.

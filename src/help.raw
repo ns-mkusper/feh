@@ -22,6 +22,8 @@ OPTIONS
  -|, --start-at FILENAME   Start at FILENAME in the filelist
  -p, --preload             Remove unloadable files from the internal filelist
                            before attempting to display anything
+     --prefetch NUM        Copy the next NUM slideshow images to local tmpfs in
+                           the background (speeds up slow/network filesystems)
  -., --scale-down          Automatically scale down images to fit screen size
  -F, --fullscreen          Make the window full screen
  -Z, --auto-zoom           Zoom picture to screen size in fullscreen/geom mode

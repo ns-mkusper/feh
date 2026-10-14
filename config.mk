@@ -123,4 +123,4 @@ MAN_DATE ?= ${shell date --utc --date=@$(SOURCE_DATE_EPOCH) '+%B %d, %Y'}
 CFLAGS += -DPREFIX=\"${PREFIX}\" \
 	-DPACKAGE=\"${PACKAGE}\" -DVERSION=\"${VERSION}\"
 
-LDLIBS += -lm -lpng -lX11 -lImlib2
+LDLIBS += -lm -lpng -lX11 -lImlib2 -lpthread

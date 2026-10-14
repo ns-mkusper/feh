@@ -91,6 +91,7 @@ void init_parse_options(int argc, char **argv)
 #endif				/* HAVE_LIBXINERAMA */
 	opt.scroll_step = 20;
 	opt.cache_size = 4;
+	opt.prefetch = 0;
 	opt.max_height = opt.max_width = UINT_MAX;
 	opt.slideshow_delay = 0.0;
 	opt.conversion_timeout = -1;
@@ -443,6 +444,7 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 		{"insecure"      , 0, 0, OPTION_insecure},
 		{"no-recursive"  , 0, 0, OPTION_no_recursive},
 		{"cache-size"    , 1, 0, OPTION_cache_size},
+		{"prefetch"      , 1, 0, OPTION_prefetch},
 		{"on-last-slide" , 1, 0, OPTION_on_last_slide},
 		{"conversion-timeout" , 1, 0, OPTION_conversion_timeout},
 		{"version-sort"  , 0, 0, OPTION_version_sort},
@@ -829,6 +831,13 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 				opt.cache_size = 0;
 			if (opt.cache_size > 2048)
 				opt.cache_size = 2048;
+			break;
+		case OPTION_prefetch:
+			opt.prefetch = atoi(optarg);
+			if (opt.prefetch < 0)
+				opt.prefetch = 0;
+			if (opt.prefetch > 64)
+				opt.prefetch = 64;
 			break;
 		case OPTION_on_last_slide:
 			if (!strcmp(optarg, "quit")) {
