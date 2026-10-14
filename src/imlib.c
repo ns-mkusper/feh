@@ -1020,17 +1020,29 @@ void feh_imlib_image_fill_text_bg(Imlib_Image im, int w, int h)
 	imlib_context_set_blend(1);
 }
 
+/*
+ * Fonts are loaded once and kept. Imlib2 resolves a font name by probing the
+ * bare name (with .ttf / .TTF / no suffix) relative to the current directory
+ * before searching the font path, so loading on every draw costs several
+ * stat(2) calls per redraw -- on a network filesystem that is several round
+ * trips per image. The fonts are never freed, so caching them is safe.
+ */
 static Imlib_Font feh_load_font(winwidget w)
 {
-	static Imlib_Font fn = NULL;
+	static Imlib_Font fn = NULL;		/* --font, or the default font */
+	static Imlib_Font fn_big = NULL;	/* default font for fullscreen */
 
-	if (opt.font)
+	if (opt.font && !fn)
 		fn = gib_imlib_load_font(opt.font);
 
-	if (!fn) {
-		if (w && w->full_screen)
-			fn = gib_imlib_load_font(DEFAULT_FONT_BIG);
-		else
+	if (!fn || (!opt.font && w && w->full_screen)) {
+		if (w && w->full_screen) {
+			if (!fn_big)
+				fn_big = gib_imlib_load_font(DEFAULT_FONT_BIG);
+			if (fn_big)
+				return fn_big;
+		}
+		if (!fn)
 			fn = gib_imlib_load_font(DEFAULT_FONT);
 	}
 
