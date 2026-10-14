@@ -8,6 +8,7 @@ TARGETS = \
 	gib_imlib.c \
 	gib_list.c \
 	gib_style.c \
+	imginfo.c \
 	imlib.c \
 	index.c \
 	keyevents.c \

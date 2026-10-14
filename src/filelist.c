@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "filelist.h"
 #include "signals.h"
 #include "options.h"
+#include "imginfo.h"
 #include "utils.h"
 
 #ifdef HAVE_LIBCURL
@@ -313,11 +314,19 @@ gib_list *feh_file_info_preload(gib_list * list, int load_images)
 	feh_file *file = NULL;
 	gib_list *remove_list = NULL;
 
+	/*
+	 * Dimensions, format and size can be read from the file headers in
+	 * parallel, without decoding anything. --preload is the exception: its
+	 * point is to verify that every file actually loads.
+	 */
+	if (load_images && !opt.preload)
+		feh_fast_info_preload(list);
+
 	for (l = list; l; l = l->next) {
 		file = FEH_FILE(l->data);
 		D(("file %p, file->next %p, file->name %s\n", l, l->next, file->name));
 		if (load_images) {
-			if (feh_file_info_load(file, NULL)) {
+			if (!file->info && feh_file_info_load(file, NULL)) {
 				D(("Failed to load file %p\n", file));
 				remove_list = gib_list_add_front(remove_list, l);
 				if (opt.verbose)

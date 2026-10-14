@@ -734,8 +734,11 @@ unloadable images first.
 Otherwise they will be removed as you flick through.
 This also analyses the images to get data for use in sorting, such as pixel
 size, type etc.
-A preload run will be automatically performed if you specify one of these
-sort modes.
+Sort modes that need image data gather it from the file headers instead
+(see
+.Cm \-\-sort ) ;
+.Cm \-\-preload
+forces the full load.
 .
 .It Cm \-q , \-\-quiet
 .
@@ -837,8 +840,12 @@ For sort modes other than
 .Cm name , none , filename , dirname ,
 or
 .Cm mtime ,
-a preload run is
-necessary, causing a delay proportional to the number of images in the list.
+image information is gathered before the first image is shown.
+Dimensions and format are read from the file headers of JPEG, PNG, GIF, WebP
+and BMP files in parallel without decoding them; other files are fully
+loaded.
+The delay is proportional to the number of images in the list, but small
+unless the files live on a slow filesystem.
 .
 .Pp
 .
