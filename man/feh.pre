@@ -308,6 +308,9 @@ In slideshow mode, copy the next
 .Ar num
 images (and a few previous ones) to a per-process directory on local tmpfs
 using background threads, and load from those copies.
+The nearest images are fetched first; while feh is idle the workers keep
+filling further ahead, up to four times
+.Ar num .
 This hides per-file latency on slow or network filesystems such as sshfs.
 Copies are removed when they fall out of the read-ahead window and when feh
 exits.

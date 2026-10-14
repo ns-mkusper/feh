@@ -71,6 +71,7 @@ static int initialized = 0;
 static volatile int shutting_down = 0;
 
 #define PF_MAX_THREADS 6
+#define PF_HORIZON 4		/* keep filling ahead up to this many windows */
 
 static int copy_file(const char *src, const char *dst, struct stat *st)
 {
@@ -332,11 +333,14 @@ void prefetch_schedule(gib_list *cur)
 	if (!initialized || !cur || !filelist)
 		return;
 
-	n_fwd = opt.prefetch;
+	/* The queue is ordered nearest-first, so the next N images are always
+	 * served first; beyond that the workers keep filling further ahead
+	 * while the user dwells on an image, up to PF_HORIZON * N. */
+	n_fwd = opt.prefetch * PF_HORIZON;
 	n_back = opt.prefetch / 4;
 	if (n_back < 1)
 		n_back = 1;
-	max_entries = opt.prefetch * 8 + 32;
+	max_entries = opt.prefetch * (PF_HORIZON + 4) + 32;
 
 	pthread_mutex_lock(&lock);
 	generation++;
