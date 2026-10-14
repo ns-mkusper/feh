@@ -27,6 +27,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "utils.h"
 #include "debug.h"
 
+/*
 int
 gib_imlib_load_image(Imlib_Image * im, char *filename)
 {
@@ -38,7 +39,6 @@ gib_imlib_load_image(Imlib_Image * im, char *filename)
    *im = imlib_load_image_with_error_return(filename, &err);
    if ((err) || (!im))
    {
-      /* Check error code */
       switch (err)
       {
         case IMLIB_LOAD_ERROR_FILE_DOES_NOT_EXIST:
@@ -91,6 +91,7 @@ gib_imlib_load_image(Imlib_Image * im, char *filename)
    }
    return (1);
 }
+*/
 
 int
 gib_imlib_image_get_width(Imlib_Image im)
@@ -705,10 +706,10 @@ gib_imlib_load_font(char *name)
 
    if ((fn = imlib_load_font(name)))
       return fn;
-   weprintf("couldn't load font %s, attempting to fall back to fixed.", name);
-   if ((fn = imlib_load_font("fixed")))
+   weprintf("couldn't load font %s, attempting to fall back to NotoSans-Medium.", name);
+   if ((fn = imlib_load_font("NotoSans-Medium/12")))
       return fn;
-   weprintf("failed to even load fixed! Attempting to find any font.");
+   weprintf("failed to even load NotoSans-Medium! Attempting to find any font.");
    return imlib_load_font("*");
 }
 

@@ -1,7 +1,7 @@
 /* imlib.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -24,6 +24,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 */
 
+/*
+ * mkstemps(3) is a nonstandard extension that requires defining
+ * _GNU_SOURCE for glibc
+ */
+#ifdef HAVE_MKSTEMPS
+#define _GNU_SOURCE
+#endif
+
 #include "feh.h"
 #include "filelist.h"
 #include "signals.h"
@@ -35,6 +43,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+
+#include <locale.h>
 
 #ifdef HAVE_LIBCURL
 #include <curl/curl.h>
@@ -53,6 +63,7 @@ magic_t magic = NULL;
 Display *disp = NULL;
 Visual *vis = NULL;
 Screen *scr = NULL;
+XIC input_context = NULL;
 Colormap cm;
 int depth;
 Atom wmDeleteWindow;
@@ -74,6 +85,8 @@ static int feh_file_is_raw(char *filename);
 static char *feh_http_load_image(char *url);
 static char *feh_dcraw_load_image(char *filename);
 static char *feh_magick_load_image(char *filename);
+
+int info_height = 0;
 
 #ifdef HAVE_LIBXINERAMA
 void init_xinerama(void)
@@ -120,6 +133,10 @@ void init_imlib_fonts(void)
 
 void init_x_and_imlib(void)
 {
+	setlocale(LC_ALL, "");
+	if (XSupportsLocale()) {
+		XSetLocaleModifiers("@im=none");
+	}
 	disp = XOpenDisplay(NULL);
 	if (!disp)
 		eprintf("Can't open X display. It *is* running, yeah?");
@@ -129,6 +146,11 @@ void init_x_and_imlib(void)
 	root = RootWindow(disp, DefaultScreen(disp));
 	scr = ScreenOfDisplay(disp, DefaultScreen(disp));
 	xid_context = XUniqueContext();
+
+	XIM im = XOpenIM(disp, NULL, NULL, NULL);
+	if (im != NULL) {
+		input_context = XCreateIC(im, XNInputStyle, XIMPreeditNothing | XIMStatusNothing, NULL);
+	}
 
 #ifdef HAVE_LIBXINERAMA
 	init_xinerama();
@@ -233,6 +255,14 @@ void feh_print_load_error(char *file, winwidget w, Imlib_Load_Error err, enum fe
 		case IMLIB_LOAD_ERROR_OUT_OF_DISK_SPACE:
 			im_weprintf(w, "%s - Cannot write - out of disk space", file);
 			break;
+#if defined(IMLIB2_VERSION_MAJOR) && defined(IMLIB2_VERSION_MINOR) && (IMLIB2_VERSION_MAJOR > 1 || IMLIB2_VERSION_MINOR > 7)
+		case IMLIB_LOAD_ERROR_IMAGE_READ:
+			im_weprintf(w, "%s - Invalid image file", file);
+			break;
+		case IMLIB_LOAD_ERROR_IMAGE_FRAME:
+			im_weprintf(w, "%s - Requested frame not in image", file);
+			break;
+#endif
 		default:
 			im_weprintf(w, "While loading %s - Unknown error (%d)",
 					file, err);
@@ -293,7 +323,8 @@ int feh_is_image(feh_file * file, int magic_flags)
 
 	D(("file %s has mime type: %s\n", file->filename, mime_type));
 
-	if (strncmp(mime_type, "image/", 6) == 0) {
+	if (strncmp(mime_type, "image/", 6) == 0 ||
+	    strcmp(mime_type, "audio/mpeg") == 0) {
 		return 1;
 	}
 
@@ -868,15 +899,15 @@ static char *feh_http_load_image(char *url)
 #endif
 
 	sfn = estrjoin("", path, tmpname, NULL);
-	free(tmpname);
 
 	D(("sfn is %s\n", sfn))
 
 #ifdef HAVE_MKSTEMPS
-	fd = mkstemps(sfn, strlen(basename) + 1);
+	fd = mkstemps(sfn, strlen(tmpname) - strlen("feh_curl_XXXXXX"));
 #else
 	fd = mkstemp(sfn);
 #endif
+	free(tmpname);
 
 	if (fd != -1) {
 		sfp = fdopen(fd, "w+");
@@ -890,23 +921,23 @@ static char *feh_http_load_image(char *url)
 			 * unusually high latencies, while at the same time avoiding
 			 * feh hanging indefinitely in unattended slideshows.
 			 */
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1800);
+			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 1800L);
 			curl_easy_setopt(curl, CURLOPT_URL, url);
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, sfp);
 			ebuff = emalloc(CURL_ERROR_SIZE);
 			curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, ebuff);
 			curl_easy_setopt(curl, CURLOPT_USERAGENT, PACKAGE "/" VERSION);
 			curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
+			curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 #if LIBCURL_VERSION_NUM >= 0x072000 /* 07.32.0 */
 			curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, curl_quit_function);
 #else
 			curl_easy_setopt(curl, CURLOPT_PROGRESSFUNCTION, curl_quit_function);
 #endif
-			curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0);
+			curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 			if (opt.insecure_ssl) {
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
-				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+				curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
 			} else if (getenv("CURL_CA_BUNDLE") != NULL) {
 				// Allow the user to specify custom CA certificates.
 				curl_easy_setopt(curl, CURLOPT_CAINFO,
@@ -1243,7 +1274,12 @@ void feh_draw_exif(winwidget w)
 
 	}
 
-	gib_imlib_render_image_on_drawable(w->bg_pmap, im, 0, w->h - height, 1, 1, 0);
+	int h_offset = 0;
+	if (opt.draw_info) {
+		h_offset = info_height;
+	}
+
+	gib_imlib_render_image_on_drawable(w->bg_pmap, im, 0, w->h - h_offset - height, 1, 1, 0);
 
 	gib_imlib_free_image_and_decache(im);
 	return;
@@ -1268,9 +1304,10 @@ void feh_draw_info(winwidget w)
 
 	fn = feh_load_font(w);
 
-	info_cmd = feh_printf(opt.info_cmd, FEH_FILE(w->file->data), w);
+	info_cmd = feh_printf(opt.info_cmd, FEH_FILE(w->file->data), w, 1);
 
 	info_pipe = popen(info_cmd, "r");
+	free(info_cmd);
 
 	if (!info_pipe) {
 		info_buf[0] = estrdup("Failed to run info command");
@@ -1320,6 +1357,8 @@ void feh_draw_info(winwidget w)
 
 	gib_imlib_render_image_on_drawable(w->bg_pmap, im, 0,
 			w->h - height, 1, 1, 0);
+
+	info_height = height;
 
 	gib_imlib_free_image_and_decache(im);
 	return;
@@ -1535,9 +1574,11 @@ void feh_edit_inplace(winwidget w, int op)
 			imlib_image_flip_horizontal();
 		else {
 			imlib_image_orientate(op);
-			tmp = w->im_w;
-			w->im_w = w->im_h;
-			w->im_h = tmp;
+			if(op != 2) {
+				tmp = w->im_w;
+				w->im_w = w->im_h;
+				w->im_h = tmp;
+			}
 			if (FEH_FILE(w->file->data)->info) {
 				FEH_FILE(w->file->data)->info->width = w->im_w;
 				FEH_FILE(w->file->data)->info->height = w->im_h;

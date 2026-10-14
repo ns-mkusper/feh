@@ -1,7 +1,7 @@
 /* options.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -43,8 +43,6 @@ fehoptions opt;
 
 void init_parse_options(int argc, char **argv)
 {
-	/* TODO: sort these to match declaration of __fehoptions */
-
 	/* For setting the command hint on X windows */
 	cmdargc = argc;
 	cmdargv = argv;
@@ -53,33 +51,50 @@ void init_parse_options(int argc, char **argv)
 	memset(&opt, 0, sizeof(fehoptions));
 	opt.display = 1;
 	opt.aspect = 1;
-	opt.slideshow_delay = 0.0;
-	opt.conversion_timeout = -1;
-	opt.thumb_w = 60;
-	opt.thumb_h = 60;
-	opt.thumb_redraw = 10;
-	opt.scroll_step = 20;
-	opt.menu_font = estrdup(DEFAULT_MENU_FONT);
-	opt.font = NULL;
-	opt.max_height = opt.max_width = UINT_MAX;
-
-	opt.zoom_rate = 1.25;
-
-	opt.start_list_at = NULL;
+	opt.use_conversion_cache = 1;
 	opt.jump_on_resort = 1;
-
-	opt.screen_clip = 1;
-	opt.cache_size = 4;
-#ifdef HAVE_LIBXINERAMA
-	/* if we're using xinerama, then enable it by default */
-	opt.xinerama = 1;
-	opt.xinerama_index = -1;
-#endif				/* HAVE_LIBXINERAMA */
 #ifdef HAVE_INOTIFY
 	opt.auto_reload = 1;
 #endif				/* HAVE_INOTIFY */
-	opt.use_conversion_cache = 1;
+#ifdef HAVE_LIBXINERAMA
+	/* if we're using xinerama, then enable it by default */
+	opt.xinerama = 1;
+#endif				/* HAVE_LIBXINERAMA */
+	opt.screen_clip = 1;
 
+	opt.output_file = NULL;
+	opt.output_dir = NULL;
+	opt.bg_file = NULL;
+	opt.image_bg = NULL;
+	opt.font = NULL;
+	opt.title_font = NULL;
+	opt.title = NULL;
+	opt.thumb_title = NULL;
+	opt.fontpath = NULL;
+	opt.filelistfile = NULL;
+	opt.menu_font = estrdup(DEFAULT_MENU_FONT);
+	opt.customlist = NULL;
+	opt.caption_path = NULL;
+	opt.start_list_at = NULL;
+	opt.info_cmd = NULL;
+	opt.index_info = NULL;
+
+	opt.thumb_w = 60;
+	opt.thumb_h = 60;
+	opt.thumb_redraw = 10;
+	
+	opt.zoom_rate = 1.25;
+
+#ifdef HAVE_LIBXINERAMA
+	/* if we're using xinerama, then enable it by default */
+	opt.xinerama_index = -1;
+#endif				/* HAVE_LIBXINERAMA */
+	opt.scroll_step = 20;
+	opt.cache_size = 4;
+	opt.max_height = opt.max_width = UINT_MAX;
+	opt.slideshow_delay = 0.0;
+	opt.conversion_timeout = -1;
+	
 	feh_getopt_theme(argc, argv);
 
 	D(("About to check for theme configuration\n"));
@@ -419,13 +434,14 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 		{"no-xinerama"   , 0, 0, OPTION_no_xinerama},
 		{"draw-tinted"   , 0, 0, OPTION_draw_tinted},
 		{"info"          , 1, 0, OPTION_info},
+		{"tap-zones"     , 0, 0, OPTION_tap_zones},
 		{"force-aliasing", 0, 0, OPTION_force_aliasing},
 		{"no-fehbg"      , 0, 0, OPTION_no_fehbg},
 		{"keep-zoom-vp"  , 0, 0, OPTION_keep_zoom_vp},
 		{"scroll-step"   , 1, 0, OPTION_scroll_step},
 		{"xinerama-index", 1, 0, OPTION_xinerama_index},
 		{"insecure"      , 0, 0, OPTION_insecure},
-		{"no-recursive"  , 0, 0, OPTION_recursive},
+		{"no-recursive"  , 0, 0, OPTION_no_recursive},
 		{"cache-size"    , 1, 0, OPTION_cache_size},
 		{"on-last-slide" , 1, 0, OPTION_on_last_slide},
 		{"conversion-timeout" , 1, 0, OPTION_conversion_timeout},
@@ -537,6 +553,8 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 		case OPTION_sort:
 			if (!strcasecmp(optarg, "name"))
 				opt.sort = SORT_NAME;
+			else if (!strcasecmp(optarg, "none"))
+				opt.sort = SORT_NONE;
 			else if (!strcasecmp(optarg, "filename"))
 				opt.sort = SORT_FILENAME;
 			else if (!strcasecmp(optarg, "dirname"))
@@ -780,6 +798,9 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 			} else {
 				opt.draw_info = 1;
 			}
+			break;
+		case OPTION_tap_zones:
+			opt.tap_zones = 1;
 			break;
 		case OPTION_force_aliasing:
 			opt.force_aliasing = 1;

@@ -1,7 +1,7 @@
 /* options.h
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -107,6 +107,7 @@ struct __fehoptions {
 	char *index_info;
 
 	int force_aliasing;
+	int tap_zones;
 	int thumb_w;
 	int thumb_h;
 	int limit_w;
@@ -239,6 +240,7 @@ OPTION_auto_rotate,
 OPTION_no_xinerama,
 OPTION_draw_tinted,
 OPTION_info,
+OPTION_tap_zones,
 OPTION_force_aliasing,
 OPTION_no_fehbg,
 OPTION_scroll_step,

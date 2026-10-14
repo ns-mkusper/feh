@@ -1,6 +1,6 @@
-include config.mk
-
 all: build-src build-man build-applications
+
+include config.mk
 
 build-src:
 	@${MAKE} -C src
@@ -12,7 +12,7 @@ build-applications:
 	@${MAKE} -C share/applications
 
 test: all
-	@if ! uname -m | fgrep -q -e arm -e mips; then \
+	@if ! uname -m | grep -q -e arm -e mips; then \
 		PACKAGE=${PACKAGE} prove test/feh.t test/mandoc.t; \
 	else \
 		PACKAGE=${PACKAGE} prove test/feh.t test/mandoc.t || cat test/imlib2-bug-notice; \
@@ -22,8 +22,7 @@ test-x11: all
 	test/run-interactive
 	prove test/feh-bg-i.t
 
-install: install-man install-doc install-bin install-font install-img
-install: install-icon install-examples install-applications
+install: $(addprefix install-, ${INSTALL_TARGETS})
 
 install-man: man/feh.1
 	@echo installing manuals to ${man_dir}
@@ -49,7 +48,7 @@ install-font:
 	@echo installing fonts to ${font_dir}
 	@mkdir -p ${font_dir}
 	@chmod 755 ${font_dir}
-	@cp share/fonts/* ${font_dir}
+	@cp share/fonts/*.ttf ${font_dir}
 	@chmod 644 ${font_dir}/*
 
 install-img:

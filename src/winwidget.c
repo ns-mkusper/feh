@@ -1,7 +1,7 @@
 /* winwidget.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2025 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -82,6 +82,7 @@ static winwidget winwidget_allocate(void)
 	ret->click_offset_x = 0;
 	ret->click_offset_y = 0;
 	ret->has_rotated = 0;
+	ret->just_mapped = 0;
 
 #ifdef HAVE_INOTIFY
     ret->inotify_wd = -1;
@@ -549,10 +550,16 @@ void winwidget_render_image(winwidget winwid, int resize, int force_alias)
 	calc_h = lround(winwid->im_h * winwid->zoom);
 	dw = (winwid->w - winwid->im_x);
 	dh = (winwid->h - winwid->im_y);
-	if (calc_w < dw)
+
+	D(("sx: %4d sy: %4d sw:      sh:      dx: %4d dy: %4d dw: %4d dh: %4d zoom: %f\n",
+	   sx, sy, sw, sh, dx, dy, dw, dh, winwid->zoom));
+
+	if (calc_w < dw) {
 		dw = calc_w;
-	if (calc_h < dh)
+	}
+	if (calc_h < dh) {
 		dh = calc_h;
+	}
 	if (dw > winwid->w)
 		dw = winwid->w;
 	if (dh > winwid->h)
@@ -561,7 +568,7 @@ void winwidget_render_image(winwidget winwid, int resize, int force_alias)
 	sw = lround(dw / winwid->zoom);
 	sh = lround(dh / winwid->zoom);
 
-	D(("sx: %d sy: %d sw: %d sh: %d dx: %d dy: %d dw: %d dh: %d zoom: %f\n",
+	D(("sx: %4d sy: %4d sw: %4d sh: %4d dx: %4d dy: %4d dw: %4d dh: %4d zoom: %f\n",
 	   sx, sy, sw, sh, dx, dy, dw, dh, winwid->zoom));
 
 	if ((winwid->zoom != 1.0 || winwid->has_rotated) && !force_alias && !winwid->force_aliasing)
@@ -586,21 +593,26 @@ void winwidget_render_image(winwidget winwid, int resize, int force_alias)
 			winwidget_update_caption(winwid);
 		if (opt.draw_filename)
 			feh_draw_filename(winwid);
+		if (opt.draw_actions)
+			feh_draw_actions(winwid);
+		/* feh_draw_info must be called before feh_draw_exif */
+		if (opt.draw_info && opt.info_cmd)
+			feh_draw_info(winwid);
 #ifdef HAVE_LIBEXIF
 		if (opt.draw_exif)
 			feh_draw_exif(winwid);
 #endif
-		if (opt.draw_actions)
-			feh_draw_actions(winwid);
-		if (opt.draw_info && opt.info_cmd)
-			feh_draw_info(winwid);
 		if (winwid->errstr)
 			feh_draw_errstr(winwid);
 		if (winwid->file != NULL) {
 			if (opt.title && winwid->type != WIN_TYPE_THUMBNAIL_VIEWER) {
-				winwidget_rename(winwid, feh_printf(opt.title, FEH_FILE(winwid->file->data), winwid));
+				char *tmp = feh_printf(opt.title, FEH_FILE(winwid->file->data), winwid, 0);
+				winwidget_rename(winwid, tmp);
+				free(tmp);
 			} else if (opt.thumb_title && winwid->type == WIN_TYPE_THUMBNAIL_VIEWER) {
-				winwidget_rename(winwid, feh_printf(opt.thumb_title, FEH_FILE(winwid->file->data), winwid));
+				char *tmp = feh_printf(opt.thumb_title, FEH_FILE(winwid->file->data), winwid, 0);
+				winwidget_rename(winwid, tmp);
+				free(tmp);
 			}
 		}
 	} else if ((opt.mode == MODE_ZOOM) && !antialias)
@@ -848,6 +860,13 @@ void winwidget_show(winwidget winwid)
 		XMapWindow(disp, winwid->win);
 		if (opt.full_screen)
 			XMoveWindow(disp, winwid->win, 0, 0);
+
+		if (input_context != NULL) {
+			XSetICValues(input_context, XNClientWindow, winwid->win, NULL);
+			//XSelectInput(disp, winwid->win, ButtonPressMask|StructureNotifyMask|KeyPressMask|KeyReleaseMask);
+			XSetICFocus(input_context);
+		}
+
 		/* wait for the window to map */
 		D(("Waiting for window to map\n"));
 		XMaskEvent(disp, StructureNotifyMask, &ev);
@@ -863,6 +882,7 @@ void winwidget_show(winwidget winwid)
 		if (ev.type == ConfigureNotify)
 			feh_event_handle_ConfigureNotify(&ev);
 		D(("Window mapped\n"));
+		winwid->just_mapped = 1;
 		winwid->visible = 1;
 	}
 	return;
@@ -952,7 +972,18 @@ void winwidget_resize(winwidget winwid, int w, int h, int force_resize)
 		winwid->had_resize = 1;
 		XFlush(disp);
 
-		winwidget_get_geometry(winwid, NULL);
+		/*
+		 * Note:
+		 * While calling winwidget_get_geometry(winwid, NULL); at this point
+		 * would help alleviate flashing issues that can occur when feh has
+		 * to render a window two times in a row, or renders the initial image
+		 * with a resolution that differs from the one that is needed to
+		 * accomodate the resize.
+		 *
+		 * However, it would also break --scale-down in floating setups. As
+		 * flashing is less annoying, we do not call winwidget_get_geometry.
+		 * here.
+		 */
 
 		if (force_resize && (opt.geom_flags & (WidthValue | HeightValue))
 				&& (winwid->type != WIN_TYPE_THUMBNAIL)) {
@@ -1108,11 +1139,11 @@ void winwidget_center_image(winwidget winwid)
 		if (opt.geom_flags & WidthValue)
 			winwid->im_x = ((int)opt.geom_w - lround(winwid->im_w * winwid->zoom)) >> 1;
 		else
-			winwid->im_x = 0;
+			winwid->im_x = (int) (winwid->w - lround(winwid->im_w * winwid->zoom)) >> 1;
 		if (opt.geom_flags & HeightValue)
 			winwid->im_y = ((int)opt.geom_h - lround(winwid->im_h * winwid->zoom)) >> 1;
 		else
-			winwid->im_y = 0;
+			winwid->im_y = (int) (winwid->h - lround(winwid->im_h * winwid->zoom)) >> 1;
 	}
 }
 

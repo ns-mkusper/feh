@@ -1,7 +1,7 @@
 /* feh.h
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2020 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -92,10 +92,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define XY_IN_RECT(x, y, rx, ry, rw, rh) \
 (((x) >= (rx)) && ((y) >= (ry)) && ((x) < ((rx) + (rw))) && ((y) < ((ry) + (rh))))
 
-#define DEFAULT_FONT "yudit/11"
-#define DEFAULT_MENU_FONT "yudit/10"
-#define DEFAULT_FONT_BIG "yudit/12"
-#define DEFAULT_FONT_TITLE "yudit/14"
+#define DEFAULT_FONT "NotoSans-Medium/11"
+#define DEFAULT_MENU_FONT "NotoSans-Medium/10"
+#define DEFAULT_FONT_BIG "NotoSans-Medium/12"
+#define DEFAULT_FONT_TITLE "NotoSans-Medium/14"
 
 enum mode_type { MODE_NORMAL = 0, MODE_PAN, MODE_ZOOM, MODE_ROTATE, MODE_BLUR, MODE_NEXT
 };
@@ -160,12 +160,12 @@ void init_buttonbindings(void);
 void setup_stdin(void);
 void restore_stdin(void);
 void feh_event_handle_keypress(XEvent * ev);
-void feh_event_handle_stdin();
-void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysym, unsigned int button);
+void feh_event_handle_stdin(void);
+void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysym, unsigned int button, char *buf, unsigned int buf_len);
 fehkey *feh_str_to_kb(char * action);
 void feh_action_run(feh_file * file, char *action, winwidget winwid);
 char *format_size(double size);
-char *feh_printf(char *str, feh_file * file, winwidget winwid);
+char *feh_printf(char *str, feh_file * file, winwidget winwid, int shell);
 void im_weprintf(winwidget w, char *fmt, ...);
 void feh_draw_zoom(winwidget w);
 void feh_draw_checks(winwidget win);
@@ -211,10 +211,10 @@ extern XineramaScreenInfo *xinerama_screens;
 extern int xinerama_screen;
 #endif				/* HAVE_LIBXINERAMA */
 
-/* Thumbnail sizes */
 extern int cmdargc;
 extern char **cmdargv;
 extern Window root;
+extern XIC input_context;
 extern XContext xid_context;
 extern Screen *scr;
 extern unsigned char reset_output;

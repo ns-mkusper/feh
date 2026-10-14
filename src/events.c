@@ -1,7 +1,7 @@
 /* events.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -207,6 +207,8 @@ static void feh_event_handle_ButtonPress(XEvent * ev)
 		return;
 	}
 
+	winwid->just_mapped = 0;
+
 	state = ev->xbutton.state & (ControlMask | ShiftMask | Mod1Mask | Mod4Mask);
 	button = ev->xbutton.button;
 
@@ -322,7 +324,7 @@ static void feh_event_handle_ButtonPress(XEvent * ev)
 
 	} else {
 		D(("Received other ButtonPress event\n"));
-		feh_event_handle_generic(winwid, state, NoSymbol, button);
+		feh_event_handle_generic(winwid, state, NoSymbol, button, NULL, 0);
 	}
 	return;
 }
@@ -366,9 +368,12 @@ static void feh_event_handle_ButtonRelease(XEvent * ev)
 		} else if (opt.mode == MODE_NEXT) {
 			opt.mode = MODE_NORMAL;
 			winwid->mode = MODE_NORMAL;
-			if (winwid->type == WIN_TYPE_SLIDESHOW)
-				slideshow_change_image(winwid, SLIDE_NEXT, 1);
-			else if (winwid->type == WIN_TYPE_THUMBNAIL) {
+			if (winwid->type == WIN_TYPE_SLIDESHOW) {
+				if (opt.tap_zones && ev->xbutton.x < winwid->w / 2)
+					slideshow_change_image(winwid, SLIDE_PREV, 1);
+				else
+					slideshow_change_image(winwid, SLIDE_NEXT, 1);
+			} else if (winwid->type == WIN_TYPE_THUMBNAIL) {
 				feh_file *thumbfile;
 				int x, y;
 
@@ -437,7 +442,19 @@ void feh_event_handle_ConfigureNotify(XEvent * ev)
 					opt.geom_h = w->h;
 				}
 				winwidget_render_image(w, 0, 0);
+				if (w->just_mapped) {
+					/*
+					 * Looks like we're being adjusted by a tiling window manager.
+					 * Set fixed geometry so that we will not make further (futile) resize attempts.
+					 * This avoids flickering during image changes when feh is running in a tiling window.
+					 * It's still kind of an ugly workaround.
+					 */
+					D(("Environment looks like a tiling window manager -- setting fixed geometry mode\n"));
+					opt.geom_enabled = 1;
+					opt.geom_flags |= WidthValue | HeightValue;
+				}
 			}
+			w->just_mapped = 0;
 		}
 	}
 
@@ -564,6 +581,7 @@ static void feh_event_handle_MotionNotify(XEvent * ev)
 					- (winwid->im_click_offset_y * winwid->zoom);
 
 			winwidget_render_image(winwid, 0, 1);
+			winwid->just_mapped = 0;
 		}
 	} else if ((opt.mode == MODE_PAN) || (opt.mode == MODE_NEXT)) {
 		int orig_x, orig_y;
@@ -631,6 +649,7 @@ static void feh_event_handle_MotionNotify(XEvent * ev)
 			if ((winwid->im_x != orig_x)
 					|| (winwid->im_y != orig_y))
 				winwidget_render_image(winwid, 0, 1);
+			winwid->just_mapped = 0;
 		}
 	} else if (opt.mode == MODE_ROTATE) {
 		while (XCheckTypedWindowEvent(disp, ev->xmotion.window, MotionNotify, ev));
@@ -653,6 +672,7 @@ static void feh_event_handle_MotionNotify(XEvent * ev)
 			winwid->im_angle = (ev->xmotion.x - winwid->w / 2) / ((double) winwid->w / 2) * 3.1415926535;
 			D(("angle: %f\n", winwid->im_angle));
 			winwidget_render_image(winwid, 0, 1);
+			winwid->just_mapped = 0;
 		}
 	} else if (opt.mode == MODE_BLUR) {
 		while (XCheckTypedWindowEvent(disp, ev->xmotion.window, MotionNotify, ev));
@@ -677,6 +697,7 @@ static void feh_event_handle_MotionNotify(XEvent * ev)
 				gib_imlib_free_image_and_decache(winwid->im);
 				winwid->im = ptr;
 			}
+			winwid->just_mapped = 0;
 		}
 	} else {
 		while (XCheckTypedWindowEvent(disp, ev->xmotion.window, MotionNotify, ev));
@@ -691,8 +712,9 @@ static void feh_event_handle_MotionNotify(XEvent * ev)
 				thumbnail = feh_thumbnail_get_thumbnail_from_coords(x, y);
 				feh_thumbnail_select(winwid, thumbnail);
 			} else {
-				feh_event_handle_generic(winwid, ev->xmotion.state | Mod3Mask, NoSymbol, 0);
+				feh_event_handle_generic(winwid, ev->xmotion.state | Mod3Mask, NoSymbol, 0, NULL, 0);
 			}
+			winwid->just_mapped = 0;
 		}
 	}
 	return;

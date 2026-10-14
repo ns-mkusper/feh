@@ -1,7 +1,7 @@
 /* thumbnail.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -183,8 +183,6 @@ void init_thumbnail_mode(void)
 		winwidget_show(winwid);
 	}
 
-	/* make sure we have an ~/.thumbnails/normal directory for storing
-	   permanent thumbnails */
 	td.cache_thumbnails = opt.cache_thumbnails;
 
 	if (td.cache_thumbnails) {
@@ -193,9 +191,15 @@ void init_thumbnail_mode(void)
 		else
 			td.cache_dim = opt.thumb_h;
 
-		if (td.cache_dim > 256) {
-			/* No caching as specified by standard. Sort of. */
+		if (td.cache_dim > 1024) {
+			/* Not specified by XDG thumbnail standard */
 			td.cache_thumbnails = 0;
+		} else if (td.cache_dim > 512) {
+			td.cache_dim = 1024;
+			td.cache_dir = estrdup("xx-large");
+		} else if (td.cache_dim > 256) {
+			td.cache_dim = 512;
+			td.cache_dir = estrdup("x-large");
 		} else if (td.cache_dim > 128) {
 			td.cache_dim = 256;
 			td.cache_dir = estrdup("large");
@@ -323,8 +327,10 @@ void init_thumbnail_mode(void)
 
 			lineno = 0;
 			if (opt.index_info) {
-				line = lines = feh_wrap_string(create_index_string(file),
+				char *tmp = create_index_string(file);
+				line = lines = feh_wrap_string(tmp,
 						opt.thumb_w * 3, td.font_main, NULL);
+				free(tmp);
 
 				while (line) {
 					gib_imlib_get_text_size(td.font_main, (char *) line -> data,
@@ -593,7 +599,7 @@ int feh_thumbnail_get_thumbnail(Imlib_Image * image, feh_file * file,
 	return status;
 }
 
-static char *feh_thumbnail_get_prefix()
+static char *feh_thumbnail_get_prefix(void)
 {
 	char *dir = NULL, *home, *xdg_cache_home;
 
@@ -699,6 +705,13 @@ int feh_thumbnail_generate(Imlib_Image * image, feh_file * file,
 				thumb_h = td.cache_dim / ratio;
 			else if (ratio != 1.0)
 				thumb_w = td.cache_dim * ratio;
+		} else {
+			/*
+			 * The image is smaller than the specified thumbnail size.
+			 * Do not cache or transform it.
+			 */
+			*image = im_temp;
+			return 1;
 		}
 
 		*image = gib_imlib_create_cropped_scaled_image(im_temp, 0, 0, w, h,
@@ -882,13 +895,13 @@ void feh_thumbnail_select_prev(winwidget winwid, int jump)
 	}
 }
 
-void feh_thumbnail_show_selected()
+void feh_thumbnail_show_selected(void)
 {
 	if (td.selected && td.selected->file)
 		feh_thumbnail_show_fullsize(td.selected->file);
 }
 
-feh_file* feh_thumbnail_get_selected_file()
+feh_file* feh_thumbnail_get_selected_file(void)
 {
 	if (td.selected)
 		return td.selected->file;

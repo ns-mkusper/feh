@@ -1,7 +1,7 @@
 /* keyevents.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2020 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -35,7 +35,7 @@ struct __fehkey keys[EVENT_LIST_END];
 struct termios old_term_settings;
 unsigned char control_via_stdin = 0;
 
-void setup_stdin() {
+void setup_stdin(void) {
 	struct termios ctrl;
 
 	control_via_stdin = 1;
@@ -55,7 +55,7 @@ void setup_stdin() {
 		eprintf("tcsetattr failed");
 }
 
-void restore_stdin() {
+void restore_stdin(void) {
 	if (tcsetattr(STDIN_FILENO, TCSANOW, &old_term_settings) == -1)
 		eprintf("tcsetattr failed");
 }
@@ -314,7 +314,7 @@ void feh_event_invoke_action(winwidget winwid, unsigned char action)
 	return;
 }
 
-void feh_event_handle_stdin()
+void feh_event_handle_stdin(void)
 {
 	char stdin_buf[2];
 	static char is_esc = 0;
@@ -360,7 +360,7 @@ void feh_event_handle_stdin()
 		keysym = XStringToKeysym(stdin_buf);
 
 	if (window_num && keysym)
-		feh_event_handle_generic(windows[0], is_esc * Mod1Mask, keysym, 0);
+		feh_event_handle_generic(windows[0], is_esc * Mod1Mask, keysym, 0, NULL, 0);
 
 	is_esc = 0;
 }
@@ -369,6 +369,7 @@ void feh_event_handle_keypress(XEvent * ev)
 {
 	int state;
 	char kbuf[20];
+	unsigned long int kbuf_used = 0;
 	KeySym keysym;
 	XKeyEvent *kev;
 	winwidget winwid = NULL;
@@ -383,7 +384,17 @@ void feh_event_handle_keypress(XEvent * ev)
 	}
 
 	kev = (XKeyEvent *) ev;
-	XLookupString(&ev->xkey, (char *) kbuf, sizeof(kbuf), &keysym, NULL);
+	if (input_context != NULL) {
+		kbuf_used = Xutf8LookupString(input_context, kev, (char *) kbuf, sizeof(kbuf), &keysym, NULL);
+	} else {
+		kbuf_used = XLookupString(&ev->xkey, (char *) kbuf, sizeof(kbuf), &keysym, NULL);
+	}
+	if (kbuf_used < sizeof(kbuf)) {
+		kbuf[kbuf_used] = 0;
+	} else {
+		kbuf[19] = 0;
+	}
+	D(("X(utf8)LookupString set kbuf = %s, keysym = %08x\n", kbuf, keysym));
 	state = kev->state & (ControlMask | ShiftMask | Mod1Mask | Mod4Mask);
 
 	if (ignore_space(keysym))
@@ -410,7 +421,12 @@ void feh_event_handle_keypress(XEvent * ev)
 	if (winwid == NULL)
 		return;
 
-	feh_event_handle_generic(winwid, state, keysym, 0);
+	if (XFilterEvent(ev, None)) {
+		D(("Event filtered\n"));
+		return;
+	}
+
+	feh_event_handle_generic(winwid, state, keysym, 0, kbuf, kbuf_used);
 }
 
 fehkey *feh_str_to_kb(char *action)
@@ -423,7 +439,7 @@ fehkey *feh_str_to_kb(char *action)
 	return NULL;
 }
 
-void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysym, unsigned int button) {
+void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysym, unsigned int button, char *buf, unsigned int buf_len) {
 	int curr_screen = 0;
 
 	if (winwid->caption_entry && (keysym != NoSymbol)) {
@@ -454,7 +470,7 @@ void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysy
 			}
 			break;
 		case XK_Escape:
-			/* cancel, revert caption */
+			/* revert caption */
 			winwid->caption_entry = 0;
 			free(FEH_FILE(winwid->file->data)->caption);
 			FEH_FILE(winwid->file->data)->caption = NULL;
@@ -463,16 +479,26 @@ void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysy
 			winwid->bg_pmap_cache = 0;
 			break;
 		case XK_BackSpace:
-			/* backspace */
-			ESTRTRUNC(FEH_FILE(winwid->file->data)->caption, 1);
+			/*
+			 * The C grammar is funny. Labels (e.g., this case block) must precede a statement (e.g., a function call) – a variable declaration is not a statement.
+			 * This load-bearing semicolon satisfies -Wfree-labels; otherwise we'd get "a label can only be part of a statement and a declaration is not a statement".
+			 */
+			;
+			char *caption = FEH_FILE(winwid->file->data)->caption;
+			size_t cpos = strlen(caption);
+			while (--cpos && (caption[cpos] & 0x80) && !(caption[cpos] & 0x40)) {}
+			caption[cpos] = '\0';
 			winwidget_render_image_cached(winwid);
 			break;
 		default:
-			if (isascii(keysym)) {
-				/* append to caption */
+			/* append to caption */
+			if ((buf != NULL) && buf_len) {
+				ESTRAPPEND(FEH_FILE(winwid->file->data)->caption, buf);
+			} else if (isascii(keysym)) {
+				// TODO update feh_event_handle_stdin to pass buf as well.
 				ESTRAPPEND_CHAR(FEH_FILE(winwid->file->data)->caption, keysym);
-				winwidget_render_image_cached(winwid);
 			}
+			winwidget_render_image_cached(winwid);
 			break;
 		}
 		return;

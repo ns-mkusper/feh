@@ -1,7 +1,7 @@
 /* menu.c
 
 Copyright (C) 1999-2003 Tom Gilbert.
-Copyright (C) 2010-2020 Daniel Friesel.
+Copyright (C) 2010-2024 Birte Kristina Friesel.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to
@@ -514,6 +514,8 @@ void feh_menu_hide(feh_menu * m, int func_free)
 	if (m == menu_root) {
 		if (menu_cover) {
 			D(("DESTROYING menu cover\n"));
+			if (m->fehwin)
+				XSetInputFocus(disp, m->fehwin->win, RevertToPointerRoot, CurrentTime);
 			XDestroyWindow(disp, menu_cover);
 			menu_cover = 0;
 		}
@@ -607,7 +609,7 @@ void feh_menu_calc_size(feh_menu * m)
 {
 	int prev_w, prev_h;
 	feh_menu_item *i;
-	int j = 0, count = 0, max_w = 0, max_h = 0, next_w = 0;
+	int max_w = 0, max_h = 0, next_w = 0;
 	int toggle_w = 1;
 
 	prev_w = m->w;
@@ -632,7 +634,6 @@ void feh_menu_calc_size(feh_menu * m)
 			if (FEH_MENU_TOGGLE_H > max_h)
 				max_h = FEH_MENU_TOGGLE_H;
 		}
-		count++;
 	}
 
 	m->h = FEH_MENU_PAD_TOP;
@@ -648,7 +649,6 @@ void feh_menu_calc_size(feh_menu * m)
 		else
 			i->h = FEH_MENU_SEP_MAX_H;
 		m->h += i->h;
-		j++;
 	}
 	m->h += FEH_MENU_PAD_BOTTOM;
 	m->w = next_w + toggle_w + max_w + FEH_MENU_PAD_LEFT + FEH_MENU_PAD_RIGHT;
@@ -825,13 +825,16 @@ void feh_menu_draw_toggle_at(int x, int y, int w, int h, Imlib_Image dst, int ox
 
 void feh_menu_draw_submenu_at(int x, int y, Imlib_Image dst, int ox, int oy)
 {
-	x -= ox;
+        // Draw filled triangle
+        x -= ox;
 	y -= oy;
 
-	gib_imlib_image_fill_rectangle(dst, x, y + 3, 1, 7, 0, 0, 0, 255);
-	gib_imlib_image_fill_rectangle(dst, x + 1, y + 4, 1, 5, 0, 0, 0, 255);
-	gib_imlib_image_fill_rectangle(dst, x + 2, y + 5, 1, 3, 0, 0, 0, 255);
-	gib_imlib_image_fill_rectangle(dst, x + 3, y + 6, 1, 1, 0, 0, 0, 255);
+	imlib_context_set_image(dst);
+	imlib_context_set_color(0, 0, 0, 255);
+
+	for (int i= 0; i <= 3; i++) {
+	  imlib_image_draw_line(x+i, y+3+i, x+i, y+9-i, 0);
+	}
 
 	return;
 }
@@ -929,7 +932,7 @@ void feh_menu_init_main(void)
 	return;
 }
 
-void feh_menu_init_common()
+void feh_menu_init_common(void)
 {
 	int num_desks, i;
 	char buf[30];
@@ -1398,7 +1401,7 @@ static feh_menu *feh_menu_func_gen_info(feh_menu * m)
 	if (!file->info)
 		feh_file_info_load(file, im);
 	if (file->info) {
-		snprintf(buffer, sizeof(buffer), "Size: %dKb", file->info->size / 1024);
+		snprintf(buffer, sizeof(buffer), "Size: %dKb", file->size / 1024);
 		feh_menu_add_entry(mm, buffer, NULL, 0, 0, NULL);
 		snprintf(buffer, sizeof(buffer), "Dimensions: %dx%d", file->info->width, file->info->height);
 		feh_menu_add_entry(mm, buffer, NULL, 0, 0, NULL);

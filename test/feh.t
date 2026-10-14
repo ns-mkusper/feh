@@ -46,8 +46,11 @@ if ( $version =~ m{ Compile-time \s switches : \s .* help }ox ) {
 	$has_help = 1;
 }
 
+# Imlib2 1.8+ returns "Invalid image file" rather than "No Imlib2 loader".
+# feh compiled with magic=1 returns "Does not look like an image (magic bytes missing)"
+# Here, we accept all three.
 my $re_warning
-  = qr{${feh_name} WARNING: test/fail/... \- No Imlib2 loader for that file format\n};
+  = qr{${feh_name} WARNING: test/fail/... \- (Invalid image file|No Imlib2 loader for that file format|Does not look like an image \(magic bytes missing\))\n};
 my $re_loadable    = qr{test/ok/...};
 my $re_unloadable  = qr{test/fail/...};
 my $re_list_action = qr{test/ok/... 16x16};
@@ -64,28 +67,28 @@ $cmd->stdout_like($re_loadable);
 $cmd->stderr_is_eq('');
 
 $cmd = Test::Command->new(
-	cmd => "$feh --loadable --action 'echo touch %f' $images" );
+	cmd => "$feh --loadable --action 'echo touch %F' $images" );
 
 $cmd->exit_is_num(1);
 $cmd->stdout_is_file('test/nx_action/loadable_action');
 $cmd->stderr_is_eq('');
 
 $cmd = Test::Command->new(
-	cmd => "$feh --loadable --action ';echo touch %f' $images" );
+	cmd => "$feh --loadable --action ';echo touch %F' $images" );
 
 $cmd->exit_is_num(1);
 $cmd->stdout_is_file('test/nx_action/loadable_naction');
 $cmd->stderr_is_eq('');
 
 $cmd = Test::Command->new(
-	cmd => "$feh --unloadable --action 'echo rm %f' $images" );
+	cmd => "$feh --unloadable --action 'echo rm %F' $images" );
 
 $cmd->exit_is_num(1);
 $cmd->stdout_is_file('test/nx_action/unloadable_action');
 $cmd->stderr_is_eq('');
 
 $cmd = Test::Command->new(
-	cmd => "$feh --unloadable --action ';echo rm %f' $images" );
+	cmd => "$feh --unloadable --action ';echo rm %F' $images" );
 
 $cmd->exit_is_num(1);
 $cmd->stdout_is_file('test/nx_action/unloadable_naction');
@@ -143,7 +146,7 @@ $cmd->stdout_is_file("test/${list_dir}/default");
 $cmd->stderr_is_eq('');
 
 $cmd = Test::Command->new(
-	cmd => "$feh --quiet --list --action 'echo \"%f %wx%h\" >&2' $images" );
+	cmd => "$feh --quiet --list --action 'echo %F \"%wx%h\" >&2' $images" );
 
 $cmd->exit_is_num(0);
 $cmd->stdout_is_file("test/${list_dir}/default");
