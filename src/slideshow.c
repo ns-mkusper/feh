@@ -254,12 +254,12 @@ void slideshow_change_image(winwidget winwid, int change, int render)
 			}
 			break;
 		case SLIDE_JUMP_FWD:
-			if (filelist_len < 5)
+			if (filelist_len < 10)
 				jmp = 1;
 			else if (filelist_len < 40)
 				jmp = 2;
 			else
-				jmp = filelist_len / 20;
+				jmp = 10;
 			if (!jmp)
 				jmp = 2;
 			current_file = feh_list_jump(filelist, current_file, FORWARD, jmp);
@@ -268,12 +268,12 @@ void slideshow_change_image(winwidget winwid, int change, int render)
 			change = SLIDE_NEXT;
 			break;
 		case SLIDE_JUMP_BACK:
-			if (filelist_len < 5)
+			if (filelist_len < 10)
 				jmp = 1;
 			else if (filelist_len < 40)
 				jmp = 2;
 			else
-				jmp = filelist_len / 20;
+				jmp = 10;
 			if (!jmp)
 				jmp = 2;
 			current_file = feh_list_jump(filelist, current_file, BACK, jmp);
