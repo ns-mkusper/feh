@@ -1834,6 +1834,14 @@ Go forward ~5% of the filelist
 .
 Go backward ~5% of the filelist
 .
+.It Ao shift+page down Ac Bq jump_fwd_far
+.
+Go forward ~5% of the filelist (upstream feh's original page-down step)
+.
+.It Ao shift+page up Ac Bq jump_back_far
+.
+Go backward ~5% of the filelist (upstream feh's original page-up step)
+.
 .It + Bq reload_plus
 .
 Increase reload delay by 1 second

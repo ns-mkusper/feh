@@ -260,6 +260,22 @@ void slideshow_change_image(winwidget winwid, int change, int render)
 				change = SLIDE_NEXT;
 			}
 			break;
+		case SLIDE_JUMP_FWD_FAR:
+		case SLIDE_JUMP_BACK_FAR:
+			/* upstream feh's original jump: ~5% of the filelist */
+			if (filelist_len < 5)
+				jmp = 1;
+			else if (filelist_len < 40)
+				jmp = 2;
+			else
+				jmp = filelist_len / 20;
+			if (!jmp)
+				jmp = 2;
+			current_file = feh_list_jump(filelist, current_file,
+					change == SLIDE_JUMP_FWD_FAR ? FORWARD : BACK, jmp);
+			/* if the load fails, step on once rather than another jmp */
+			change = SLIDE_NEXT;
+			break;
 		case SLIDE_JUMP_FWD:
 			if (filelist_len < 10)
 				jmp = 1;

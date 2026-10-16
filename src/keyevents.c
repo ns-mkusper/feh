@@ -157,6 +157,8 @@ void init_keyevents(void) {
 	feh_set_kb("next_img"  , 0, XK_Right     , 0, XK_n         , 0, XK_space);
 	feh_set_kb("jump_back" , 0, XK_Page_Up   , 0, XK_KP_Page_Up, 0, 0);
 	feh_set_kb("jump_fwd"  , 0, XK_Page_Down , 0, XK_KP_Page_Down,0,0);
+	feh_set_kb("jump_back_far", ShiftMask, XK_Page_Up, ShiftMask, XK_KP_Page_Up, 0, 0);
+	feh_set_kb("jump_fwd_far" , ShiftMask, XK_Page_Down, ShiftMask, XK_KP_Page_Down, 0, 0);
 	feh_set_kb("prev_dir"  , 0, XK_bracketleft, 0, 0           , 0, 0);
 	feh_set_kb("next_dir"  , 0, XK_bracketright, 0, 0          , 0, 0);
 	feh_set_kb("jump_random" ,0, XK_z         , 0, 0            , 0, 0);
@@ -567,6 +569,18 @@ void feh_event_handle_generic(winwidget winwid, unsigned int state, KeySym keysy
 			slideshow_change_image(winwid, SLIDE_JUMP_FWD, 1);
 		else if (winwid->type == WIN_TYPE_THUMBNAIL)
 			feh_thumbnail_select_next(winwid, 10);
+	}
+	else if (feh_is_kp(EVENT_jump_back_far, state, keysym, button)) {
+		if (opt.slideshow)
+			slideshow_change_image(winwid, SLIDE_JUMP_BACK_FAR, 1);
+		else if (winwid->type == WIN_TYPE_THUMBNAIL)
+			feh_thumbnail_select_prev(winwid, 50);
+	}
+	else if (feh_is_kp(EVENT_jump_fwd_far, state, keysym, button)) {
+		if (opt.slideshow)
+			slideshow_change_image(winwid, SLIDE_JUMP_FWD_FAR, 1);
+		else if (winwid->type == WIN_TYPE_THUMBNAIL)
+			feh_thumbnail_select_next(winwid, 50);
 	}
 	else if (feh_is_kp(EVENT_next_dir, state, keysym, button)) {
 		if (opt.slideshow)

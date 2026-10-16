@@ -291,6 +291,8 @@ enum key_action {
 	EVENT_next_img,
 	EVENT_jump_back,
 	EVENT_jump_fwd,
+	EVENT_jump_back_far,
+	EVENT_jump_fwd_far,
 	EVENT_prev_dir,
 	EVENT_next_dir,
 	EVENT_jump_random,
