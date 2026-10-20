@@ -319,6 +319,12 @@ On reload
 .Cm \-\-reload
 the original file is stat'd and re-read only if its size or modification
 time changed since the copy was taken.
+The
+.Qq Invalidate Cache
+entry in the File menu drops every copy, including ones still being written,
+together with Imlib2's decoded-image cache, then reloads the current image from
+the original file; use it when a copy was read while the source was damaged or
+still changing.
 .Ar num
 must be between 0 and 64 and defaults to 0 (off).
 .

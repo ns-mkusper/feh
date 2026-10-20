@@ -30,6 +30,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "winwidget.h"
 #include "filelist.h"
 #include "options.h"
+#include "prefetch.h"
 
 Window menu_cover = 0;
 feh_menu *menu_root = NULL;
@@ -52,6 +53,7 @@ enum {
 	CB_CLOSE = 1,
 	CB_EXIT,
 	CB_RELOAD,
+	CB_INVALIDATE_CACHE,
 	CB_REMOVE,
 	CB_DELETE,
 	CB_RESET,
@@ -916,6 +918,8 @@ void feh_menu_init_main(void)
 	feh_menu_add_entry(m, "Reset", NULL, CB_RESET, 0, NULL);
 	feh_menu_add_entry(m, "Resize Window", NULL, CB_FIT, 0, NULL);
 	feh_menu_add_entry(m, "Reload", NULL, CB_RELOAD, 0, NULL);
+	if (opt.prefetch)
+		feh_menu_add_entry(m, "Invalidate Cache", NULL, CB_INVALIDATE_CACHE, 0, NULL);
 	feh_menu_add_entry(m, "Save Image", NULL, CB_SAVE_IMAGE, 0, NULL);
 	feh_menu_add_entry(m, "Save List", NULL, CB_SAVE_FILELIST, 0, NULL);
 	if (opt.edit) {
@@ -1072,6 +1076,8 @@ void feh_menu_init_single_win(void)
 	feh_menu_add_entry(m, "Reset", NULL, CB_RESET, 0, NULL);
 	feh_menu_add_entry(m, "Resize Window", NULL, CB_FIT, 0, NULL);
 	feh_menu_add_entry(m, "Reload", NULL, CB_RELOAD, 0, NULL);
+	if (opt.prefetch)
+		feh_menu_add_entry(m, "Invalidate Cache", NULL, CB_INVALIDATE_CACHE, 0, NULL);
 	feh_menu_add_entry(m, "Save Image", NULL, CB_SAVE_IMAGE, 0, NULL);
 	feh_menu_add_entry(m, "Save List", NULL, CB_SAVE_FILELIST, 0, NULL);
 	feh_menu_add_entry(m, "Edit in Place", "EDIT", 0, 0, NULL);
@@ -1138,6 +1144,8 @@ void feh_menu_init_thumbnail_viewer(void)
 	feh_menu_add_entry(m, "Reset", NULL, CB_RESET, 0, NULL);
 	feh_menu_add_entry(m, "Resize Window", NULL, CB_FIT, 0, NULL);
 	feh_menu_add_entry(m, "Reload", NULL, CB_RELOAD, 0, NULL);
+	if (opt.prefetch)
+		feh_menu_add_entry(m, "Invalidate Cache", NULL, CB_INVALIDATE_CACHE, 0, NULL);
 	feh_menu_add_entry(m, "Save Image", NULL, CB_SAVE_IMAGE, 0, NULL);
 	feh_menu_add_entry(m, "Save List", NULL, CB_SAVE_FILELIST, 0, NULL);
 	feh_menu_add_entry(m, "Edit in Place", "EDIT", 0, 0, NULL);
@@ -1257,6 +1265,17 @@ void feh_menu_cb(feh_menu * m, feh_menu_item * i, int action, unsigned short dat
 			break;
 		case CB_RELOAD:
 			feh_reload_image(m->fehwin, 0, 1);
+			break;
+		case CB_INVALIDATE_CACHE:
+			/* A copy read through a flaky mount can be damaged while the source
+			 * is fine: drop every prefetched copy and Imlib2's decoded images,
+			 * then reload this image and refill the read-ahead from the source. */
+			prefetch_invalidate_all();
+			imlib_set_cache_size(0);
+			imlib_set_cache_size(opt.cache_size * 1024 * 1024);
+			feh_reload_image(m->fehwin, 0, 1);
+			if (current_file)
+				prefetch_schedule(current_file);
 			break;
 		case CB_REMOVE:
 			feh_filelist_image_remove(m->fehwin, 0);

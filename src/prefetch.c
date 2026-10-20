@@ -51,6 +51,7 @@ typedef struct pf_entry {
 	off_t size;		/* source size and mtime when the copy was taken */
 	struct timespec mtime;
 	int state;
+	int discard;		/* invalidated while in flight: the worker frees it */
 	unsigned wanted;	/* generation that last asked for this entry */
 	struct pf_entry *next;
 } pf_entry;
@@ -138,6 +139,17 @@ static void *worker(__attribute__((unused)) void *arg)
 		ok = shutting_down ? 0 : copy_file(name, local, &st);
 
 		pthread_mutex_lock(&lock);
+		if (e->discard) {
+			/* prefetch_invalidate_all() detached it mid-copy */
+			if (ok)
+				unlink(local);
+			free(e->name);
+			free(e);
+			pthread_cond_broadcast(&done_cv);
+			pthread_mutex_unlock(&lock);
+			free(name);
+			continue;
+		}
 		if (ok) {
 			e->local = estrdup(local);
 			e->size = st.st_size;
@@ -470,4 +482,32 @@ void prefetch_revalidate(const char *name)
 		return;
 
 	prefetch_invalidate(name);
+}
+
+/* Forget every local copy, including ones still being written, so that every
+ * load reads the source again. Returns the number of copies dropped. */
+int prefetch_invalidate_all(void)
+{
+	pf_entry *e, *next;
+	int dropped = 0;
+
+	if (!initialized)
+		return 0;
+
+	pthread_mutex_lock(&lock);
+	q_len = 0;
+	for (e = entries; e; e = next) {
+		next = e->next;
+		if (e->state == PF_LOADING) {
+			e->discard = 1;	/* a worker owns it; it is freed when the copy ends */
+		} else {
+			if (e->state == PF_READY)
+				dropped++;
+			free_entry(e);
+		}
+	}
+	entries = NULL;
+	n_entries = 0;
+	pthread_mutex_unlock(&lock);
+	return dropped;
 }

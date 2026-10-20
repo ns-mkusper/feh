@@ -9,5 +9,6 @@ void prefetch_schedule(gib_list *cur);
 char *prefetch_local_copy(const char *name);
 void prefetch_invalidate(const char *name);
 void prefetch_revalidate(const char *name);
+int prefetch_invalidate_all(void);
 
 #endif
