@@ -445,6 +445,7 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 		{"no-recursive"  , 0, 0, OPTION_no_recursive},
 		{"cache-size"    , 1, 0, OPTION_cache_size},
 		{"prefetch"      , 1, 0, OPTION_prefetch},
+		{"all-files"     , 0, 0, OPTION_all_files},
 		{"on-last-slide" , 1, 0, OPTION_on_last_slide},
 		{"conversion-timeout" , 1, 0, OPTION_conversion_timeout},
 		{"version-sort"  , 0, 0, OPTION_version_sort},
@@ -838,6 +839,9 @@ static void feh_parse_option_array(int argc, char **argv, int finalrun)
 				opt.prefetch = 0;
 			if (opt.prefetch > 64)
 				opt.prefetch = 64;
+			break;
+		case OPTION_all_files:
+			opt.all_files = 1;
 			break;
 		case OPTION_on_last_slide:
 			if (!strcmp(optarg, "quit")) {

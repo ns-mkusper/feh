@@ -132,6 +132,50 @@ int file_selector_all(const struct dirent *unused __attribute__((unused)))
   return 1;
 }
 
+/*
+ * Extensions of formats feh can load via Imlib2, dcraw or ImageMagick.
+ * Files found while expanding a directory are only added if they match,
+ * so non-images never enter the filelist and cost no I/O at all.
+ * Files named explicitly on the command line are always added.
+ */
+static const char *image_exts[] = {
+	"jpg", "jpeg", "jpe", "jfif", "png", "apng", "gif", "webp", "bmp", "dib",
+	"tif", "tiff", "tga", "ico", "cur", "xpm", "xbm", "pnm", "pbm", "pgm",
+	"ppm", "pam", "ff", "farbfeld", "heic", "heif", "avif", "jxl", "svg",
+	"svgz", "qoi", "ilbm", "lbm", "iff", "jp2", "j2k", "jpf", "jpx", "pcx",
+	"dds", "psd", "xcf", "exr", "hdr", "ps", "eps", "pdf",
+	"arw", "cr2", "cr3", "crw", "dng", "erf", "kdc", "mrw", "nef", "nrw",
+	"orf", "pef", "raf", "raw", "rw2", "sr2", "srf", "srw", "x3f",
+	NULL
+};
+
+static int has_image_ext(const char *name)
+{
+	const char *base = strrchr(name, '/');
+	const char *ext;
+	int i;
+
+	base = base ? base + 1 : name;
+	ext = strrchr(base, '.');
+	if (!ext || ext == base)
+		return 0;
+	ext++;
+	for (i = 0; image_exts[i]; i++)
+		if (!strcasecmp(ext, image_exts[i]))
+			return 1;
+	return 0;
+}
+
+static int file_selector_images(const struct dirent *de)
+{
+#ifdef _DIRENT_HAVE_D_TYPE
+	/* other types (directories, symlinks, unknown) are decided after stat */
+	if (de->d_type == DT_REG)
+		return has_image_ext(de->d_name);
+#endif
+	return 1;
+}
+
 static void feh_print_stat_error(char *path)
 {
 	if (opt.quiet)
@@ -254,7 +298,7 @@ void add_file_to_filelist_recursively(char *origpath, unsigned char level)
 			free(path);
 			return;
 		}
-		n = scandir(path, &de, file_selector_all, alphasort);
+		n = scandir(path, &de, opt.all_files ? file_selector_all : file_selector_images, alphasort);
 		if (n < 0) {
 			switch (errno) {
 			case ENOMEM:
@@ -286,6 +330,10 @@ void add_file_to_filelist_recursively(char *origpath, unsigned char level)
 		}
 		closedir(dir);
 	} else if (S_ISREG(st.st_mode)) {
+		if (level != FILELIST_FIRST && !opt.all_files && !has_image_ext(path)) {
+			free(path);
+			return;
+		}
 		D(("Adding regular file %s to filelist\n", path));
 		filelist = gib_list_add_front(filelist, feh_file_new(path));
 	}

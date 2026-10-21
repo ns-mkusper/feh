@@ -40,6 +40,7 @@ struct __fehoptions {
 	unsigned char thumbs;
 	unsigned char slideshow;
 	unsigned char recursive;
+	unsigned char all_files;
 	unsigned char output;
 	unsigned char verbose;
 	unsigned char display;
@@ -260,6 +261,7 @@ OPTION_class,
 OPTION_no_conversion_cache,
 OPTION_window_id,
 OPTION_prefetch,
+OPTION_all_files,
 };
 
 //typedef enum __fehoption fehoption;

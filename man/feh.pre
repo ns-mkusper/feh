@@ -255,6 +255,15 @@ Example usage:
 .
 Extra actions which can be set and triggered using the appropriate number key.
 .
+.It Cm \-\-all\-files
+.
+When expanding a directory, add every regular file to the filelist.
+By default only files with a known image extension
+.Pq jpg, png, gif, webp, tiff, heic, avif, camera raw formats and so on
+are added, which is decided from the directory listing alone, so non-image
+files cost no I/O and are never stepped through in the slideshow.
+Files given directly on the command line are always added.
+.
 .It Cm \-\-auto\-reload
 .
 .Pq optional feature, $MAN_INOTIFY$ in this build
